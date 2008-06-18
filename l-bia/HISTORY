@@ -1,0 +1,77 @@
+HISTORY for L-Bia
+Breno Ramalho Lemes
+May 19, 2008 (version 0.1.9)
+
+%!include(html): ''htdocs/lbtopbar.html''
+
+= Changes from version 0.1.8 to 0.1.9 =
+: Implementation:
+  - fixed ID check bug in l-bia.c and l-bia.lua
+
+
+= Changes from version 0.1.7 to 0.1.8 =
+: Implementation:
+  - updated to miniLZO 2.03.
+  - fixed another small bug in the module loading.
+  - small fix in the win32 packing target in Makefile.
+
+
+= Changes from version 0.1.6 to 0.1.7 =
+: Implementation:
+  - fixed a small bug in the module loading.
+
+
+= Changes from version 0.1.5 to 0.1.6 =
+
+: Implementation:
+  - fixed some bugs and miskates.
+  - new module built feature.
+
+
+= Changes from version 0.1.4 to 0.1.5 =
+
+: Implementation:
+  - new -v or --version option.
+  - new -h synonym for --help.
+
+
+= Changes from version 0.1.3 to 0.1.4 =
+
+: Documentation:
+  - fixed some miskates.
+
+: Implementation:
+  - updated to Lua 5.1.3.
+  - new quote function in lbaux package.
+  - fixed some bugs.
+
+
+= Changes from version 0.1.2 to 0.1.3 =
+
+: Documentation:
+  - fixed some links and mistakes.
+  - added e-mail address.
+
+: Implementation:
+  - new lstrip mode.
+  - new stdout and stderr messages.
+  - new lbaux.dll or lbaux.so from lbaux.c.
+  - better options handling.
+  - fixed version number in l-bia.lua.
+  - LZO in l-bia.c do not use lbaux.c.
+  - win32 and src packing target in Makefile.
+
+
+= Changes from version 0.1.1 to 0.1.2 =
+
+: Documentation:
+  - new L-Bia logo.
+  - new HISTORY document.
+  - some small updates here and there.
+
+: Implementation:
+  - new lbaux.c which contains all registered functions
+    (chmod, compress and decompress).
+  - updates in l-bia.lua to reflect the new lbaux.c.
+  - renamed lbiaconf.h to lbconf.h.
+  - renamed all LBIA* and lbia* names to LB* and lb*.

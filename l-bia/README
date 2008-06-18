@@ -1,0 +1,46 @@
+Lua Built-In program (L-Bia)
+Breno Ramalho Lemes
+May 19, 2008 (version 0.1.9)
+
+%!include(html): ''htdocs/lbtopbar.html''
+
+= What is L-Bia? =
+
+Lua Built-In program (L-Bia) is a self-running Lua interpreter. Use it
+to get your Lua program, your C/C++ user code and a Lua interpreter into
+a single, stand-alone program.
+
+= Availability =
+
+L-Bia is freely available under the terms of GNU General Public License.
+Contrary to popular belief, it can be used in comercial software! See
+[COPYING copying.html] for details. The latest version of L-Bia can be
+downloaded from its [LuaForge http://luaforge.net/projects/l-bia/files/]
+page.
+
+= Installation =
+
+The Makefile is targeted at Unix and Windows/mingw systems. Just edit it
+and/or lbconf.h to suit your needs and do ``make release`` or ``make debug``.
+This will build ``l-bia``, copy it to a suitable place.
+
+= How do I use it? =
+
+For each Lua program that you want to trun into a stand-alone program,
+do ``l-bia hello.lua`` and ``hello`` to run. For Unix systems if //chmod//
+feature isn't available, you need do ``chmod +x hello`` first. Of course,
+you can use any name instead of //hello//.
+
+The command-line arguments will be available to the Lua program in a table
+called "arg" and also as "...". Use lbconf.h to select which standard Lua
+libraries and features will be available.
+
+To include C/C++ user code edit ``lbconf.h``. If your user code is C++
+do ``make release CC=g++``. See ``lbaux.c`` for an example.
+
+= Thanks =
+
+Thanks to **Waldemar Celes** and **Luiz Henrique de Figueiredo**, the autors
+of Lua, for portions of code I used in L-Bia. Tanks also to
+**Markus Franz Xaver Johannes Oberhumer** for miniLZO - mini subset of the
+LZO real-time data compression library.
