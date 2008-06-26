@@ -1,51 +1,23 @@
 /*
- *  "$Id: l-bia.c,v 1.1 2008-06-18 15:53:17 br_lemes Exp $"
+ *  "$Id: l-bia.c,v 1.2 2008-06-26 23:38:16 br_lemes Exp $"
  *  Lua Built-In program (L-Bia)
- *  A self-running Lua interpreter. Use it to get your Lua program, your
- *  C/C++ user code and a Lua interpreter into a single, stand-alone program.
+ *  A self-running Lua interpreter. It turns your Lua program with all
+ *  required modules and an interpreter into a single stand-alone program.
  *  Copyright (c) 2007,2008 Breno Ramalho Lemes
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
-
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
-
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *  L-Bia comes with ABSOLUTELY NO WARRANTY; This is free software, and you
+ *  are welcome to redistribute it under certain conditions; see COPYING
+ *  for details.
  *
- *  Breno Ramalho Lemes
  *  <br_lemes@yahoo.com.br>
  *  http://l-bia.luaforge.net/
  */
-
-#include <stdio.h>
-#include <stdlib.h>
 
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
-#ifdef __cplusplus
-}
-#endif
-
 #include "lbconf.h"
-
-#ifdef LBCONF_LZO
-#include "minilzo.h"
-#endif
 
 #define LB_FLATMD 101
 #define LB_MLZOMD 102
@@ -124,10 +96,8 @@ int main(int argc, char *argv[]){
   argv[0] = selfname;
 #endif
 
-#ifdef LBCONF_LZO
   if (lzo_init() != LZO_E_OK)
     lb_error("Internal LZO error");
-#endif
 
   L = luaL_newstate();
   if (L == NULL) lb_error("Not enough memory");
@@ -150,11 +120,7 @@ int main(int argc, char *argv[]){
   if (memcmp(lb_id.mode,LB_FLATID,4)==0)
     lb_mode = LB_FLATMD;
   else if (memcmp(lb_id.mode,LB_MLZOID,4)==0)
-#ifdef LBCONF_LZO
     lb_mode = LB_MLZOMD;
-#else
-    lb_error("mini LZO real-time data compression library not available");
-#endif
   else
     lb_error("Missing, corrupted or incompatible script overlay");
 
@@ -164,13 +130,11 @@ int main(int argc, char *argv[]){
   lua_pop(L,1);
   if (lb_nlen == 0)
     lb_error("Missing, corrupted or incompatible script overlay");
-#ifdef LBCONF_LZO
   if (lb_mode == LB_MLZOMD) {
     lua_pushlstring(L,lb_id.dlen,10);
     lb_dlen = lua_tointeger(L,-1);
     lua_pop(L,1);
   }
-#endif
 
   /* data loading subpass */
   if (fseek(lb_file,-(sizeof(lb_id)+lb_nlen),SEEK_END)!=0)
@@ -181,7 +145,6 @@ int main(int argc, char *argv[]){
     lb_cannot("read",argv[0]);
   fclose(lb_file);
 
-#ifdef LBCONF_LZO
   /* decompress pass */
   if (lb_mode == LB_MLZOMD) {
     int r;
@@ -194,9 +157,6 @@ int main(int argc, char *argv[]){
     else
       lb_error("decompress failed");
   } else lua_pushlstring(L,lb_data,lb_nlen);
-#else
-  lua_pushlstring(L,lb_data,lb_nlen);
-#endif
 
   lua_newtable(L);
   {
@@ -221,7 +181,3 @@ int main(int argc, char *argv[]){
   LBCONF_USERFUNC_DONE(L);
   lua_close(L);
 }
-
-/*
- *  End of "$Id: l-bia.c,v 1.1 2008-06-18 15:53:17 br_lemes Exp $".
- */

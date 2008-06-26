@@ -1,0 +1,15 @@
+Lua Built-In program (L-Bia)
+Breno Ramalho Lemes
+%%mtime(%B %d, %Y) (version 0.1.10)
+
+%!includeconf: config
+
+%!include:../README
+
+= Copying =
+
+%!include:../COPYING
+
+= History =
+
+%!include:../HISTORY

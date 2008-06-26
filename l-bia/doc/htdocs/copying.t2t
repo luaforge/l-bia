@@ -1,0 +1,8 @@
+Lua Built-In program (L-Bia)
+Breno Ramalho Lemes
+January 30, 2008
+
+%!includeconf: ../config
+%!include(html): ''lbtopbar.html''
+
+%!include: ../../COPYING

@@ -1,35 +1,20 @@
 /*
- *  "$Id: lbaux.c,v 1.1 2008-06-18 15:53:17 br_lemes Exp $"
+ *  "$Id: lbaux.c,v 1.2 2008-06-26 23:38:16 br_lemes Exp $"
  *  Auxiliary library for the Lua Built-In program (L-Bia)
- *  A self-running Lua interpreter. Use it to get your Lua program, your
- *  C/C++ user code and a Lua interpreter into a single, stand-alone program.
- *  Copyright (c) 2008 Breno Ramalho Lemes
+ *  A self-running Lua interpreter. It turns your Lua program with all
+ *  required modules and an interpreter into a single stand-alone program.
+ *  Copyright (c) 2007,2008 Breno Ramalho Lemes
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
-
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
-
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *  L-Bia comes with ABSOLUTELY NO WARRANTY; This is free software, and you
+ *  are welcome to redistribute it under certain conditions; see COPYING
+ *  for details.
  *
- *  Breno Ramalho Lemes
  *  <br_lemes@yahoo.com.br>
  *  http://l-bia.luaforge.net/
  */
 
 #ifndef LBAUX_C
 #define LBAUX_C
-
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
 
 #include "lbconf.h"
 
@@ -52,8 +37,6 @@ static int lbaux_quote(lua_State* L) {
   luaL_pushresult(&b);
   return 1;
 }
-
-#ifdef LBCONF_LSTRIP
 
 /* Based on code by Luiz Henrique de Figueiredo */
 
@@ -189,12 +172,6 @@ static int lbaux_lstrip(lua_State* L) {
   return 1;
 }
 
-#endif
-
-#ifdef LBCONF_LZO
-
-#include "minilzo.h"
-
 #define HEAP_ALLOC(var,size) \
   lzo_align_t __LZO_MMODEL var [((size)+(sizeof(lzo_align_t)-1))/sizeof(lzo_align_t)]
 static HEAP_ALLOC(wrkmem,LZO1X_1_MEM_COMPRESS);
@@ -234,25 +211,16 @@ static int lbaux_decompress(lua_State *L) {
   return 1;
 }
 
-#endif
-
-#ifdef LBCONF_CHMOD
-
-#include <errno.h>
-#include <stdlib.h>
-#include <sys/stat.h>
+#ifndef _WIN32
 
 static int lbaux_chmod(lua_State *L) {
-  const char *filename = luaL_checkstring(L,1);
+  FILE *f = *(FILE**)luaL_checkudata(L,1,LUA_FILEHANDLE);
   mode_t mode = luaL_checknumber(L,2);
-  int r = chmod(filename,mode);
+  int r = fchmod(fileno(f),mode);
   if (r == -1) {
     int en = errno;
     lua_pushnil(L);
-    if (filename)
-      lua_pushfstring(L,"%s: %s",filename,strerror(en));
-    else
-      lua_pushfstring(L,"%s",strerror(en));
+    lua_pushfstring(L,"%s",strerror(en));
     lua_pushinteger(L,en);
     return 3;
   }
@@ -263,14 +231,10 @@ static int lbaux_chmod(lua_State *L) {
 
 static const luaL_Reg lbauxlib[] = {
   {"quote",lbaux_quote},
-#ifdef LBCONF_LSTRIP
   {"lstrip",lbaux_lstrip},
-#endif
-#ifdef LBCONF_LZO
   {"compress",lbaux_compress},
   {"decompress",lbaux_decompress},
-#endif
-#ifdef LBCONF_CHMOD
+#ifndef _WIN32
   {"chmod",lbaux_chmod},
 #endif
   {NULL,NULL}
@@ -282,7 +246,3 @@ int luaopen_lbaux(lua_State *L) {
 }
 
 #endif
-
-/*
- *  End of "$Id: lbaux.c,v 1.1 2008-06-18 15:53:17 br_lemes Exp $".
- */

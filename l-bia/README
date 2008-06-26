@@ -1,14 +1,14 @@
-Lua Built-In program (L-Bia)
-Breno Ramalho Lemes
-May 19, 2008 (version 0.1.9)
 
-%!include(html): ''htdocs/lbtopbar.html''
+= Overview =
 
-= What is L-Bia? =
+Lua Built-In program (L-Bia) is a self-running Lua interpreter. It turns
+your Lua program with all required modules (either Lua or C libraries)
+and an interpreter into a single stand-alone program.
 
-Lua Built-In program (L-Bia) is a self-running Lua interpreter. Use it
-to get your Lua program, your C/C++ user code and a Lua interpreter into
-a single, stand-alone program.
+L-Bia makes the things simpler. First because you don't need to distribute
+may files. Last because you can run the resulting program directly, in any
+computer from any media (flopies, CD-ROMs, USB sticks or other), without
+installing it or have any prior software installed.
 
 = Availability =
 
@@ -18,25 +18,51 @@ Contrary to popular belief, it can be used in comercial software! See
 downloaded from its [LuaForge http://luaforge.net/projects/l-bia/files/]
 page.
 
-= Installation =
+= Build and Install =
 
-The Makefile is targeted at Unix and Windows/mingw systems. Just edit it
-and/or lbconf.h to suit your needs and do ``make release`` or ``make debug``.
-This will build ``l-bia``, copy it to a suitable place.
+If you're using the usual Unix tools, in most cases you can just type
+``make``. This will compile everything with the default options. To
+change the options, modify or include C/C++ user code edit Makefile
+and/or lbconf.h.
+
+If you're on Windows or other systems without the usual Unix tools, then
+the instructions for building L-Bia depend on the compiler you use. You'll
+need to create projects (or whatever your compiler uses) for building the
+library (``lbaux.dll`` on Windows) and the program (``l-bia.exe`` on
+Windows), as follows:
+
+```
+library: lbaux.c minilzo.c
+
+program: l-bia.c minilzo.c
+```
+
+Then run l-bia on l-bia this way:
+``lua l-bia.lua -i program l-bia.lua``.
+
+As L-Bia uses L-Bia, it needs no installation at all. You don't need library
+any more. The only file needed to use the program is ``l-bia`` executable
+(``l-bia.exe`` on Windows). If you want to "install" L-Bia on the system, just
+copy it to a system PATH directory.
 
 = How do I use it? =
 
-For each Lua program that you want to trun into a stand-alone program,
-do ``l-bia hello.lua`` and ``hello`` to run. For Unix systems if //chmod//
-feature isn't available, you need do ``chmod +x hello`` first. Of course,
-you can use any name instead of //hello//.
+Just type ``l-bia hello.lua`` for each program you want to turn into a
+stand-alone program. It will create a ``hello`` executable (``hello.exe``
+on Windows) ready to use. If you disbled the L-Bia built-in //chmod//
+feature and you're on Unix systems, you will need type ``chmod +x hello``
+first in order to make it executable. Of course you can use any name
+instead of //hello//.
 
-The command-line arguments will be available to the Lua program in a table
-called "arg" and also as "...". Use lbconf.h to select which standard Lua
-libraries and features will be available.
+If your script uses modules, you must run L-Bia for main script only. L-Bia
+automatically search for all require'd modules and include then. There is no
+need for ``l-bia *.lua``.
 
-To include C/C++ user code edit ``lbconf.h``. If your user code is C++
-do ``make release CC=g++``. See ``lbaux.c`` for an example.
+The command-line arguments passed to your stand-alone program will be
+available in a table called "arg" and also as "...".
+
+Type ``l-bia`` with no arguments, to see a list of command-line options
+and a brief help about it.
 
 = Thanks =
 

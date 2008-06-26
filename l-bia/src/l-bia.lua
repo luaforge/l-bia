@@ -1,44 +1,32 @@
 #!/usr/bin/env lua
-
---  "$Id: l-bia.lua,v 1.1 2008-06-18 15:53:17 br_lemes Exp $"
+--
+--  "$Id: l-bia.lua,v 1.2 2008-06-26 23:38:16 br_lemes Exp $"
 --  Lua Built-In program (L-Bia)
---  A self-running Lua interpreter. Use it to get your Lua program, your
---  C/C++ user code and a Lua interpreter into a single, stand-alone program.
+--  A self-running Lua interpreter. It turns your Lua program with all
+--  required modules and an interpreter into a single stand-alone program.
 --  Copyright (c) 2007,2008 Breno Ramalho Lemes
-
---  This program is free software; you can redistribute it and/or modify
---  it under the terms of the GNU General Public License as published by
---  the Free Software Foundation; either version 2 of the License, or
---  (at your option) any later version.
-
---  This program is distributed in the hope that it will be useful,
---  but WITHOUT ANY WARRANTY; without even the implied warranty of
---  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
---  GNU General Public License for more details.
-
---  You should have received a copy of the GNU General Public License along
---  with this program; if not, write to the Free Software Foundation, Inc.,
---  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
---  Breno Ramalho Lemes
+--
+--  L-Bia comes with ABSOLUTELY NO WARRANTY; This is free software, and you
+--  are welcome to redistribute it under certain conditions; see COPYING
+--  for details.
+--
 --  <br_lemes@yahoo.com.br>
 --  http://l-bia.luaforge.net/
+--
 
 -- ignore any error
 pcall(require,"lbaux")
 
 -- values
 local LB_NAME      = "L-Bia"
-local LB_VERSION   = "0.1.9"
+local LB_VERSION   = "0.1.10"
 local LB_LONGNAME  = "Lua Buit-In program"
 local LB_COPYRIGHT = "Copyright (c) 2007,2008 Breno Ramalho Lemes"
 
-local modes   = {"-xb","-xs","-cf","-cl","-sf","-sl","-df","-dl","-rf","-rl"}
+local modes   = {"-cf","-cl","-sf","-sl","-df","-dl","-rf","-rl"}
 local options = {"-i","-o","-v","-h","--best"}
 
 local mdesc = {
-  ["-xb"]="Extract binary file",
-  ["-xs"]="Extract source code",
   ["-cf"]="Clean and Flat mode (default soft clean)",
   ["-cl"]="Clean and LZO mode (clean compress)",
   ["-sf"]="Strip and Flat mode (lstrip hard clean)",
@@ -53,7 +41,7 @@ local odesc = {
   ["-o"]="<file> Write output to <file>",
   ["-v"]="Show version number and exit (synonym for --version)",
   ["-h"]="Show this help message and exit (synonym for --help)",
-  ["--best"]="Select the best mode available (-sl, -cl, -sf or -cf)",
+  ["--best"]="Select the best mode available (-sl or -cf)",
 }
 
 -- functions
@@ -166,11 +154,9 @@ function getopts()
           else lb_error("Invalid arguments!\n"..LB_TFHELP) end
         elseif arg[1] == "--best" then
           if not mode then
-            if lbaux and lbaux.compress then
-              if lbaux.lstrip then mode = "-sl" else mode = "-cl" end
-            else
-              if lbaux and lbaux.lstrip then mode = "-sf" else mode = "-cf" end
-            end
+            if lbaux then
+              if lbaux.lstrip then mode = "-sl" end
+            else mode = "-cf" end
           else
             lb_error("Invalid mode or option '"..arg[1].."'.\n"..LB_TFHELP)
           end
@@ -193,25 +179,17 @@ function getopts()
     table.remove(arg,1)
   end
   mode = mode or "-cf"
-  if string.sub(mode,3,3) == "l" and (not lbaux or not lbaux.compress) then
+  if string.sub(mode,3,3) == "l" and (not lbaux) then
     lb_error("mini LZO real-time data compression library not available")
   end
-  if string.sub(mode,2,2) == "s" and (not lbaux or not lbaux.lstrip) then
+  if string.sub(mode,2,2) == "s" and (not lbaux) then
     lb_error("lstrip not available")
   end
-  if string.sub(mode,2,2) == "x" then
-    if script and not input then
-      input,script = script,input
-    elseif script and input then lb_error("Too many arguments.\n"..LB_TFHELP) end
-    if not output then output = "lbout" end
-    if string.sub(mode,3,3) == "b" then outext = exeext else outext = ".lua" end
-  else
-    if not script then
-      lb_error("Too few arguments.\n"..LB_TFHELP)
-    end
-    if not output then
-      output = filename_base(script)
-    end
+  if not script then
+    lb_error("Too few arguments.\n"..LB_TFHELP)
+  end
+  if not output then
+    output = filename_base(script)
   end
   if not input then
     if not arg[-1] then
@@ -362,31 +340,6 @@ function reqtab(s)
   return result
 end
 
-function xbfunc(str,sign,program)
-  -- write output program
-  local o_handle = lb_cannot("open",io.open(program,"wb+"))
-  lb_cannot("write",o_handle:write(str))
-  o_handle:close()
-
-  return #str
-end
-
-function xsfunc(str,sign,script)
-  if sign.mode == "mLZO" then
-    if (not lbaux or not lbaux.decompress) then
-        lb_error("mini LZO real-time data compression library not available")
-    end
-    str = lbaux.decompress(str,sign.dlen)
-  end
-
-  -- write output program
-  local o_handle = lb_cannot("open",io.open(script,"wb+"))
-  lb_cannot("write",o_handle:write(str))
-  o_handle:close()
-
-  return #str
-end
-
 -- return string,nlen,dlen,mode
 local mfunc = {
   ["-cf"]=function (s)
@@ -489,55 +442,53 @@ function main(input,script,output,mode)
   local i_len2 = #i_string
   local s_len1, s_len2, o_len
   local info_table = { }
-  if mode == "-xb" then o_len = xbfunc(i_string,i_sign,output)
-  elseif mode == "-xs" then o_len = xsfunc(string.sub(i_string,1,-35),i_sign,output)
-  else
-    -- read script
-    local s_handle = lb_cannot("open",io.open(script,"rb"))
-    local s_string = lb_cannot("read",s_handle:read("*a"))
-    s_handle:close()
-    s_len1 = #s_string
 
-    -- strip #! from first line
-    if string.sub(s_string,1,2) == "#!" then
-      local _,i = string.find(s_string,"^#!.-\n")
-      s_string = string.sub(s_string,i,-1)
-    end
+  -- read script
+  local s_handle = lb_cannot("open",io.open(script,"rb"))
+  local s_string = lb_cannot("read",s_handle:read("*a"))
+  s_handle:close()
+  s_len1 = #s_string
 
-    check(s_string)
+  -- strip #! from first line
+  if string.sub(s_string,1,2) == "#!" then
+    local _,i = string.find(s_string,"^#!.-\n")
+    s_string = string.sub(s_string,i,-1)
+  end
 
-    local s_reqtab = reqtab(s_string)
-    local s_reqstr = ""
-    for i,name in ipairs(s_reqtab) do
-      local temp = { }
-      temp.name = findfile(name,"path")
-      if temp.name then 
-        temp.type = "Lua module"
+  check(s_string)
+
+  local s_reqtab = reqtab(s_string)
+  local s_reqstr = ""
+  for i,name in ipairs(s_reqtab) do
+    local temp = { }
+    temp.name = findfile(name,"path")
+    if temp.name then 
+      temp.type = "Lua module"
+    else
+      temp.name = findfile(name,"cpath")
+      if temp.name then
+        temp.type = "C module"
       else
-        temp.name = findfile(name,"cpath")
-        if temp.name then
-          temp.type = "C module"
-        else
-          lb_error("Module not found")
-        end
+        lb_error("Module not found")
       end
-      local s_reqhan = lb_cannot("open",io.open(temp.name,"rb"))
-      local s_reqdat = s_reqhan:read("*a")
-      s_reqhan:close()
-      temp.len1 = #s_reqdat
-      if temp.type == "Lua module" then
-        s_reqdat = lbaux.quote(mfunc["-"..string.sub(mode,2,2).."f"](s_reqdat))
-      else -- if C module
-        s_reqdat = lbaux.quote(s_reqdat)
-      end
-      s_reqstr = s_reqstr..string.format("LB_REQ[%d]={module=%q,name=%q,type=%q,data=%s}\n",
-                                        i,name,filename_name(temp.name),temp.type,s_reqdat)
-      temp.len2 = #s_reqdat
-      table.insert(info_table,temp)
     end
-    if #s_reqtab > 0 then
-      s_string = string.format("LB_REQ={}\n%s\n"..[[
-LB_REQ.temp = os.getenv("TEMP") or os.getenv("TMP")
+    local s_reqhan = lb_cannot("open",io.open(temp.name,"rb"))
+    local s_reqdat = s_reqhan:read("*a")
+    s_reqhan:close()
+    temp.len1 = #s_reqdat
+    if temp.type == "Lua module" then
+      s_reqdat = lbaux.quote(mfunc["-"..string.sub(mode,2,2).."f"](s_reqdat))
+    else -- if C module
+      s_reqdat = lbaux.quote(s_reqdat)
+    end
+    s_reqstr = s_reqstr..string.format("LB_REQ[%d]={module=%q,name=%q,type=%q,data=%s}\n",
+                                        i,name,filename_name(temp.name),temp.type,s_reqdat)
+    temp.len2 = #s_reqdat
+    table.insert(info_table,temp)
+  end
+  if #s_reqtab > 0 then
+    s_string = string.format("LB_REQ={}\n%s\n"..[[
+LB_REQ.temp = os.getenv("TEMP") or os.getenv("TMP") or "/tmp"
 LB_REQ.temp = LB_REQ.temp.."/"
 package.cpath = LB_REQ.temp..%q..";"..package.cpath
 for i,v in ipairs(LB_REQ) do
@@ -552,22 +503,24 @@ for i,v in ipairs(LB_REQ) do
   end
 end
 %s]],s_reqstr,string.match(package.cpath,"%?%....?"),s_string)
-    end
-
-    -- process mode
-    local s_string,s_nlen,s_dlen,s_mode = mfunc[mode](s_string)
-
-    -- write output
-    local o_handle = lb_cannot("open",io.open(output,"wb+"))
-    local o_string = string.format("%s%s<L-Bia#%s:%010d:%010d>",
-      i_string,s_string,s_mode,s_nlen,s_dlen)
-    lb_cannot("write",o_handle:write(o_string))
-    o_handle:close()
-
-    s_len2 = s_nlen
-    o_len  = #o_string
-    if (lbaux and lbaux.chmod) then lbaux.chmod(output,755) end
   end
+
+  -- process mode
+  local s_string,s_nlen,s_dlen,s_mode = mfunc[mode](s_string)
+
+  -- write output
+  local o_handle = lb_cannot("open",io.open(output,"wb+"))
+  local o_string = string.format("%s%s<L-Bia#%s:%010d:%010d>",
+    i_string,s_string,s_mode,s_nlen,s_dlen)
+  lb_cannot("write",o_handle:write(o_string))
+  if (lbaux and lbaux.chmod) then
+    lb_cannot("chmod",lbaux.chmod(o_handle,755))
+  end
+  o_handle:close()
+
+  s_len2 = s_nlen
+  o_len  = #o_string
+
 --  if not o_len then return end
 
   print(LB_NAME.." "..LB_VERSION.." - "..mdesc[mode])
@@ -593,7 +546,3 @@ if io and string and table then
 else
   lb_error("Packages io, string or table not found")
 end
-
---
--- End of "$Id: l-bia.lua,v 1.1 2008-06-18 15:53:17 br_lemes Exp $".
---

@@ -1,27 +1,4 @@
-##
-##  "$Id: Makefile,v 1.1 2008-06-18 15:53:17 br_lemes Exp $"
 ##  Makefile to build Lua Buit-In program (L-Bia)
-##  A self-running Lua interpreter. Use it to get your Lua program, your
-##  C/C++ user code and a Lua interpreter into a single, stand-alone program.
-##  Copyright (c) 2007,2008 Breno Ramalho Lemes
-##
-##  This program is free software; you can redistribute it and/or modify
-##  it under the terms of the GNU General Public License as published by
-##  the Free Software Foundation; either version 2 of the License, or
-##  (at your option) any later version.
-
-##  This program is distributed in the hope that it will be useful,
-##  but WITHOUT ANY WARRANTY; without even the implied warranty of
-##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##  GNU General Public License for more details.
-
-##  You should have received a copy of the GNU General Public License along
-##  with this program; if not, write to the Free Software Foundation, Inc.,
-##  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-##  Breno Ramalho Lemes
-##  <br_lemes@yahoo.com.br>
-##  http://l-bia.luaforge.net/
 
 # Your version. See VERSIONS for possible values.
 VERSION=none
@@ -46,7 +23,7 @@ LUA=lua
 
 MYCCFLAGS=
 MYLDFLAGS=
-MYLIBS=-llua -lm
+MYLIBS=-llua
 
 # Compiler.
 CC=gcc
@@ -78,6 +55,7 @@ endif
 
 ifeq ($(EXEEXT),)
 LBAUX=lbaux.so
+MYLIBS=-llua -lm -ldl
 endif
 ifeq ($(EXEEXT),.exe)
 LBAUX=lbaux.dll
@@ -104,15 +82,22 @@ $(TARGET): $(OBJECTS)
 
 $(OBJECTS): $(OBJECTS:.o=.c) lbconf.h
 
-clean:
-	$(RM) $(OBJECTS) lbaux.o
+clean-obj:
+	@echo $(RM) $(OBJECTS) lbaux.o
+	@$(RM) $(OBJECTS) lbaux.o
+
+clean-target:
+	@echo $(RM) $(TARGET) $(LBAUX)
+	@$(RM) $(TARGET) $(LBAUX)
+
+clean: clean-obj clean-target
+
 
 erase: clean
 ifneq ($(EXEEXT),)
-	$(RM) *$(EXEEXT)
+	@echo $(RM) *$(EXEEXT)
+	@$(RM) *$(EXEEXT)
 endif
-	$(RM) $(TARGET)
-	$(RM) $(LBAUX)
 
 debug:
 	@$(MAKE) all MYCCFLAGS="$(MYCCFLAGS) -g" STRIP="" UPX=""
@@ -132,7 +117,7 @@ ifneq ($(UPX),)
 endif
 endif
 
-.PHONY: all $(VERSIONS) clean none
+.PHONY: default none all $(VERSIONS) clean-obj clean-target clean erase
 
 .SUFFIXES: .h .c .o $(EXEEXT)
 
@@ -149,7 +134,3 @@ endif
 .c.o:
 	echo Compiling $<...
 	$(CC) $(CCFLAGS) -c $<
-
-#
-#  End of "$Id: Makefile,v 1.1 2008-06-18 15:53:17 br_lemes Exp $".
-#
