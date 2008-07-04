@@ -35,7 +35,7 @@ pkg-htdocs:
 	@zip -q -9 -r ../$(LB_HTDOCS).zip $(LB_HTDOCS)
 	@rm -rf $(LB_HTDOCS)
 
-LB_SRC=$(LB_NAME)-$(LB_VERSION)-src
+LB_SRC=$(LB_NAME)-$(LB_VERSION)
 LB_SFILES=COPYING HISTORY README README.LZO Makefile doc src
 pkg-src: erase
 	@echo Building $(LB_SRC).tar.bz2 package...
