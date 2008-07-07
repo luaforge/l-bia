@@ -1,5 +1,5 @@
 /*
- *  "$Id: lbaux.c,v 1.2 2008-06-26 23:38:16 br_lemes Exp $"
+ *  "$Id: lbaux.c,v 1.3 2008-07-07 21:50:04 br_lemes Exp $"
  *  Auxiliary library for the Lua Built-In program (L-Bia)
  *  A self-running Lua interpreter. It turns your Lua program with all
  *  required modules and an interpreter into a single stand-alone program.
@@ -18,25 +18,11 @@
 
 #include "lbconf.h"
 
-static int lbaux_quote(lua_State* L) {
-  size_t n; int i; luaL_Buffer b;
-  const char *s = luaL_checklstring(L,1,&n);
-  luaL_buffinit(L,&b);
-  luaL_addstring(&b,"\"");
-  for (i = 0; i < n; i++) {
-    int c=s[i];
-    switch (c) {
-      case    '"': luaL_addstring(&b,"\\\""); break;
-      case   '\\': luaL_addstring(&b,"\\\\"); break;
-      case   '\n': luaL_addstring(&b,"\\n"); break;
-      case   '\r': luaL_addstring(&b,"\\r"); break;
-      default: luaL_addchar(&b,c);
-    }
-  }
-  luaL_addstring(&b,"\"");
-  luaL_pushresult(&b);
-  return 1;
-}
+#define MINILZO_CFG_SKIP_LZO_PTR
+#define MINILZO_CFG_SKIP_LZO_STRING
+#define MINILZO_CFG_SKIP_LZO1X_DECOMPRESS
+#define MINILZO_CFG_SKIP_LZO1X_DECOMPRESS_SAFE
+#include "minilzo.c"
 
 /* Based on code by Luiz Henrique de Figueiredo */
 
@@ -63,12 +49,24 @@ static const char *getS (lua_State *L, void *ud, size_t *size) {
   return ls->s;
 }
 
-static void lbaux_tsquote(lua_State* L,const TString *ts) {
+static void lbaux_quote(lua_State* L,const TString *ts) {
+  int i; luaL_Buffer b;
+  size_t n = ts->tsv.len; 
   const char *s = getstr(ts);
-  size_t n = ts->tsv.len;
-  lua_pushcfunction(L,lbaux_quote);
-  lua_pushlstring(L,s,n);
-  lua_call(L,1,1);
+  luaL_buffinit(L,&b);
+  luaL_addstring(&b,"\"");
+  for (i = 0; i < n; i++) {
+    int c=s[i];
+    switch (c) {
+      case    '"': luaL_addstring(&b,"\\\""); break;
+      case   '\\': luaL_addstring(&b,"\\\\"); break;
+      case   '\n': luaL_addstring(&b,"\\n"); break;
+      case   '\r': luaL_addstring(&b,"\\r"); break;
+      default: luaL_addchar(&b,c);
+    }
+  }
+  luaL_addstring(&b,"\"");
+  luaL_pushresult(&b);
 }
 
 #define lbaux_pair(a,b) (1024*(a)+(b))
@@ -149,7 +147,7 @@ static int lbaux_lstrip(lua_State* L) {
         luaL_pushresult(&b);
         return 1;
       case TK_STRING:
-        lbaux_tsquote(L,X.t.seminfo.ts);
+        lbaux_quote(L,X.t.seminfo.ts);
         luaL_addvalue(&b);
         break;
       case TK_NAME:
@@ -192,55 +190,64 @@ static int lbaux_compress(lua_State *L) {
   return 1;
 }
 
-static int lbaux_decompress(lua_State *L) {
-  int r;
-  size_t out_len;
-  lzo_uint new_len;
-  lzo_bytep out = (lzo_bytep)luaL_checklstring(L,1,&out_len);
-  lzo_uint in_len = (lzo_uint)luaL_checknumber(L,2);
-  lzo_bytep in = (lzo_bytep)alloca(in_len);
-  if (out == NULL) {
-    lua_pushnil(L);
-    return 1;
-  }
-  r = lzo1x_decompress(out,out_len,in,&new_len,NULL);
-  if (r == LZO_E_OK && in_len == new_len)
-    lua_pushlstring(L,(const char*)in,in_len);
-  else
+static int lbaux_adler32(lua_State *L) {
+  lua_pushnumber(L,
+    lzo_adler32(0,(lzo_bytep)luaL_checkstring(L,1),lua_strlen(L,1)));
+  return 1;
+}
+
+static int lbaux_toustr32(lua_State *L) {
+  uint32_t n = luaL_checknumber(L,1);
+  char buf[4];
+  memcpy(buf,&n,4);
+  lua_pushlstring(L,buf,4);
+  return 1;
+}
+
+static int lbaux_touint32(lua_State *L) {
+  size_t size = 0;
+  const char *buf = luaL_checklstring(L,1,&size);
+  if (size == 4) {
+    uint32_t n;
+    memcpy(&n,buf,4);
+    lua_pushnumber(L,n);
+  } else
     lua_pushnil(L);
   return 1;
 }
 
 #ifndef _WIN32
-
 static int lbaux_chmod(lua_State *L) {
   FILE *f = *(FILE**)luaL_checkudata(L,1,LUA_FILEHANDLE);
   mode_t mode = luaL_checknumber(L,2);
-  int r = fchmod(fileno(f),mode);
-  if (r == -1) {
+  if (fchmod(fileno(f),mode) != -1) {
+    lua_pushboolean(L,1);
+    return 1;
+  } else {
     int en = errno;
     lua_pushnil(L);
     lua_pushfstring(L,"%s",strerror(en));
     lua_pushinteger(L,en);
     return 3;
   }
-  return 1;
 }
-
 #endif
 
 static const luaL_Reg lbauxlib[] = {
-  {"quote",lbaux_quote},
-  {"lstrip",lbaux_lstrip},
-  {"compress",lbaux_compress},
-  {"decompress",lbaux_decompress},
+  {"lstrip"   ,lbaux_lstrip},
+  {"compress" ,lbaux_compress},
+  {"adler32"  ,lbaux_adler32},
+  {"toustr32" ,lbaux_toustr32},
+  {"touint32" ,lbaux_touint32},
 #ifndef _WIN32
-  {"chmod",lbaux_chmod},
+  {"chmod"    ,lbaux_chmod},
 #endif
   {NULL,NULL}
 };
 
 int luaopen_lbaux(lua_State *L) {
+  if (lzo_init() != LZO_E_OK)
+    return luaL_error(L,"Internal LZO error");
   luaL_register(L,"lbaux",lbauxlib);
   return 1;
 }
