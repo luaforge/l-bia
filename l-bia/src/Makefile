@@ -3,36 +3,38 @@
 # Your version. See VERSIONS for possible values.
 VERSION=none
 
-# Where are the things
+# Where are the things.
 #  PREFIX is get from the lua directory.
-#  PREFIX  = /usr/local
+## PREFIX  = /usr/local
 BINDIR  = $(PREFIX)/bin
 DATDIR  = $(PREFIX)/share
 INCDIR  = $(PREFIX)/include
 LIBDIR  = $(PREFIX)/lib
 DOCDIR  = $(DATDIR)/doc
-# Lua source
+# Lua source.
 SRCDIR  = $(PREFIX)/src/lua-5.1.3/src
 
 # Utilities.
 MAKE=make -s
 STRIP=strip
+STRIPFLAGS=
 UPX=upx
 UPXFLAGS=--best
 LUA=lua
 
-MYCCFLAGS=
-MYLDFLAGS=
-MYLIBS=-llua
-
 # Compiler.
 CC=gcc
-CCFLAGS=$(MYCCFLAGS) -I $(INCDIR) -I $(SRCDIR) -L $(LIBDIR)
+CCFLAGS=$(MYCCFLAGS) -I $(INCDIR) -I $(SRCDIR)
 LIBS=$(MYLIBS)
+
+# Compiler flags.
+MYCCFLAGS=
+MYLDFLAGS=
+MYLIBS=
 
 # == END OF USER SETTINGS. NO NEED TO CHANGE ANYTHING BELOW THIS LINE =========
 
-# Get PREFIX and EXEEXT
+# Get PREFIX and EXEEXT.
 THELUA=$(shell which lua.exe)
 ifeq ($(THELUA),)
 THELUA=$(shell which lua)
@@ -53,9 +55,11 @@ ifeq ($(THEUPX),)
 UPX=
 endif
 
+# Set LBAUX (.so or .dll), STRIPFLAGS and MYLIBS.
 ifeq ($(EXEEXT),)
 LBAUX=lbaux.so
-MYLIBS=-llua -lm -ldl
+MYLIBS=-lm -ldl
+STRIPFLAGS=--strip-unneeded
 endif
 ifeq ($(EXEEXT),.exe)
 LBAUX=lbaux.dll
@@ -72,26 +76,37 @@ none:
 	@echo "where VERSION is one of these:"
 	@echo "   $(VERSIONS)"
 
-TARGET=l-bia$(EXEEXT)
-OBJECTS=l-bia.o minilzo.o
+L_BIA=l-bia$(EXEEXT)
+LBDEP=lbconf.h lzoconf.h lzodefs.h minilzo.c minilzo.h
 
-all: $(TARGET) $(LBAUX)
-	$(LUA) l-bia.lua -i l-bia$(EXEEXT) l-bia.lua --best
+all: $(L_BIA) $(LBAUX)
+	$(LUA) l-bia.lua -i $(L_BIA) l-bia.lua
 
-$(TARGET): $(OBJECTS)
+$(L_BIA): l-bia.c $(LBDEP)
+	echo Linking $@...
+	$(CC) $(CCFLAGS) $< $(MYLDFLAGS) $(LIBS) -o $@
+ifneq ($(STRIP),)
+	$(STRIP) $@
+endif
+ifneq ($(UPX),)
+	$(UPX) $(UPXFLAGS) $@
+endif
 
-$(OBJECTS): $(OBJECTS:.o=.c) lbconf.h
+$(LBAUX): lbaux.c $(LBDEP)
+	echo Linking $@...
+	$(CC) -shared $(CCFLAGS) $< -o $@
+ifneq ($(STRIP),)
+	$(STRIP) $@
+endif
+ifeq ($(LBAUX),lbaux.dll)
+ifneq ($(UPX),)
+	$(UPX) $(UPXFLAGS) $@
+endif
+endif
 
-clean-obj:
-	@echo $(RM) $(OBJECTS) lbaux.o
-	@$(RM) $(OBJECTS) lbaux.o
-
-clean-target:
-	@echo $(RM) $(TARGET) $(LBAUX)
-	@$(RM) $(TARGET) $(LBAUX)
-
-clean: clean-obj clean-target
-
+clean:
+	@echo $(RM) $(L_BIA) $(LBAUX)
+	@$(RM) $(L_BIA) $(LBAUX)
 
 erase: clean
 ifneq ($(EXEEXT),)
@@ -103,34 +118,7 @@ debug:
 	@$(MAKE) all MYCCFLAGS="$(MYCCFLAGS) -g" STRIP="" UPX=""
 
 release:
-	@$(MAKE) all MYCCLAGS="$(MYCCFLAGS) -O2 -Wall"
+	@$(MAKE) all MYCCLAGS="$(MYCCFLAGS) -O -Wall"
 
-$(LBAUX): lbaux.o minilzo.o
-	echo Linking $@...
-	$(CC) -shared $(CCFLAGS) $^ $(MYLDFLAGS) $(LIBS) -o $@
-ifneq ($(STRIP),)
-	$(STRIP) --strip-unneeded $@
-endif
-ifeq ($(LBAUX),lbaux.dll)
-ifneq ($(UPX),)
-	$(UPX) $(UPXFLAGS) $@
-endif
-endif
 
-.PHONY: default none all $(VERSIONS) clean-obj clean-target clean erase
-
-.SUFFIXES: .h .c .o $(EXEEXT)
-
-.o$(EXEEXT):
-	echo Linking $@...
-	$(CC) $(CCFLAGS) $^ $(MYLDFLAGS) $(LIBS) -o $@
-ifneq ($(STRIP),)
-	$(STRIP) $@
-endif
-ifneq ($(UPX),)
-	$(UPX) $(UPXFLAGS) $@
-endif
-
-.c.o:
-	echo Compiling $<...
-	$(CC) $(CCFLAGS) -c $<
+.PHONY: default none all $(VERSIONS) clean erase
