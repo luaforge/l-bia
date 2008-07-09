@@ -1,5 +1,5 @@
 /*
- *  "$Id: lbconf.h,v 1.2 2008-06-26 23:38:16 br_lemes Exp $"
+ *  "$Id: lbconf.h,v 1.3 2008-07-09 20:31:37 br_lemes Exp $"
  *  Config file for the Lua Built-In program (L-Bia)
  *  A self-running Lua interpreter. It turns your Lua program with all
  *  required modules and an interpreter into a single stand-alone program.
@@ -16,47 +16,97 @@
 #ifndef LBCONF_H
 #define LBCONF_H
 
-#ifdef __cplusplus
-extern "C" {
+/***** LBAUX_C *****/
+#ifdef LBAUX_C
+#include <stdint.h>
+#include "lapi.c"
+#include "lcode.c"
+#include "ldebug.c"
+#include "ldo.c"
+#include "ldump.c"
+#include "lfunc.c"
+#include "lgc.c"
+#include "llex.c"
+#include "lmem.c"
+#include "lobject.c"
+#include "lopcodes.c"
+#include "lparser.c"
+#include "lstate.c"
+#include "lstring.c"
+#include "ltable.c"
+#include "ltm.c"
+#include "lundump.c"
+#include "lvm.c"
+#include "lzio.c"
+#include "lauxlib.c"
+#define MINILZO_CFG_SKIP_LZO_PTR
+#define MINILZO_CFG_SKIP_LZO_STRING
+#define MINILZO_CFG_SKIP_LZO1X_DECOMPRESS
+#define MINILZO_CFG_SKIP_LZO1X_DECOMPRESS_SAFE
+#include "minilzo.c"
 #endif
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
-#ifdef __cplusplus
+/***** LBAUX_C *****/
+
+/***** L_BIA_C *****/
+#ifdef L_BIA_C
+#include <stdint.h>
+#define luaall_c
+#include "lapi.c"
+#include "lcode.c"
+#include "ldebug.c"
+#include "ldo.c"
+#include "ldump.c"
+#include "lfunc.c"
+#include "lgc.c"
+#include "llex.c"
+#include "lmem.c"
+#include "lobject.c"
+#include "lopcodes.c"
+#include "lparser.c"
+#include "lstate.c"
+#include "lstring.c"
+#include "ltable.c"
+#include "ltm.c"
+#include "lundump.c"
+#include "lvm.c"
+#include "lzio.c"
+#include "lauxlib.c"
+#include "lbaselib.c"
+//#include "ldblib.c"
+#include "liolib.c"
+//#include "linit.c"
+#include "lmathlib.c"
+#include "loadlib.c"
+#include "loslib.c"
+#include "lstrlib.c"
+#include "ltablib.c"
+#define MINILZO_CFG_SKIP_LZO_PTR
+#define MINILZO_CFG_SKIP_LZO_STRING
+#define MINILZO_CFG_SKIP_LZO1X_DECOMPRESS_SAFE
+#include "minilzo.c"
+#ifdef _WIN32
+#include <windows.h>
+#endif
+static const luaL_Reg lualibs[] = {
+  {"", luaopen_base},
+  {LUA_LOADLIBNAME, luaopen_package},
+  {LUA_TABLIBNAME, luaopen_table},
+  {LUA_IOLIBNAME, luaopen_io},
+  {LUA_OSLIBNAME, luaopen_os},
+  {LUA_STRLIBNAME, luaopen_string},
+  {LUA_MATHLIBNAME, luaopen_math},
+//{LUA_DBLIBNAME, luaopen_debug},
+  {NULL, NULL}
+};
+LUALIB_API void luaL_openlibs (lua_State *L) {
+  const luaL_Reg *lib = lualibs;
+  for (; lib->func; lib++) {
+    lua_pushcfunction(L, lib->func);
+    lua_pushstring(L, lib->name);
+    lua_call(L, 1, 0);
+  }
 }
 #endif
-
-#ifndef _WIN32
-#include <errno.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-// WIN32 doesn't need chmod
-#endif
-
-#include "minilzo.h"
-
-#define LBCONF_LIB_BASE
-#define LBCONF_LIB_LOAD
-#define LBCONF_LIB_TABLE
-#define LBCONF_LIB_IO
-#define LBCONF_LIB_OS
-#define LBCONF_LIB_STRING
-#define LBCONF_LIB_MATH
-//#define LBCONF_LIB_DB
-
-//#include "usercode.c"
-//#define LBCONF_USERFUNC_INIT(L) userfunc_init(L)
-//#define LBCONF_USERFUNC_DONE(L) userfunc_done(L)
-
-// If you want lbaux built-in uncomment the following
-//#include "lbaux.c"
-//#define LBCONF_USERFUNC_INIT(L) luaopen_lbaux(L); lua_pop(L,1);
-
-#ifndef LBCONF_USERFUNC_INIT
-#define LBCONF_USERFUNC_INIT(L)
-#endif
-#ifndef LBCONF_USERFUNC_DONE
-#define LBCONF_USERFUNC_DONE(L)
-#endif
+/***** L_BIA_C *****/
 
 #endif

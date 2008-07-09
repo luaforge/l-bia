@@ -1,5 +1,5 @@
 /*
- *  "$Id: lbaux.c,v 1.3 2008-07-07 21:50:04 br_lemes Exp $"
+ *  "$Id: lbaux.c,v 1.4 2008-07-09 20:28:32 br_lemes Exp $"
  *  Auxiliary library for the Lua Built-In program (L-Bia)
  *  A self-running Lua interpreter. It turns your Lua program with all
  *  required modules and an interpreter into a single stand-alone program.
@@ -18,36 +18,8 @@
 
 #include "lbconf.h"
 
-#define MINILZO_CFG_SKIP_LZO_PTR
-#define MINILZO_CFG_SKIP_LZO_STRING
-#define MINILZO_CFG_SKIP_LZO1X_DECOMPRESS
-#define MINILZO_CFG_SKIP_LZO1X_DECOMPRESS_SAFE
-#include "minilzo.c"
-
 /* Based on code by Luiz Henrique de Figueiredo */
-
-#include "ldo.h"
-#include "lfunc.h"
-#include "llex.h"
-#include "lobject.h"
-#include "lparser.h"
-#include "lstring.h"
-#include "ltable.h"
-#include "lzio.h"
-
-typedef struct LoadS {
-  const char *s;
-  size_t size;
-} LoadS;
-
-static const char *getS (lua_State *L, void *ud, size_t *size) {
-  LoadS *ls = (LoadS *)ud;
-  (void)L;
-  if (ls->size == 0) return NULL;
-  *size = ls->size;
-  ls->size = 0;
-  return ls->s;
-}
+/* BEGIN */
 
 static void lbaux_quote(lua_State* L,const TString *ts) {
   int i; luaL_Buffer b;
@@ -169,6 +141,7 @@ static int lbaux_lstrip(lua_State* L) {
   luaL_pushresult(&b);
   return 1;
 }
+/* END */
 
 #define HEAP_ALLOC(var,size) \
   lzo_align_t __LZO_MMODEL var [((size)+(sizeof(lzo_align_t)-1))/sizeof(lzo_align_t)]
@@ -217,6 +190,10 @@ static int lbaux_touint32(lua_State *L) {
 }
 
 #ifndef _WIN32
+
+#include <sys/stat.h>
+#define LUA_FILEHANDLE "FILE*"
+
 static int lbaux_chmod(lua_State *L) {
   FILE *f = *(FILE**)luaL_checkudata(L,1,LUA_FILEHANDLE);
   mode_t mode = luaL_checknumber(L,2);
@@ -231,6 +208,7 @@ static int lbaux_chmod(lua_State *L) {
     return 3;
   }
 }
+
 #endif
 
 static const luaL_Reg lbauxlib[] = {
