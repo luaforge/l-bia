@@ -1,6 +1,6 @@
 #!/usr/bin/env lua
 --
---  "$Id: l-bia.lua,v 1.2 2008-06-26 23:38:16 br_lemes Exp $"
+--  "$Id: l-bia.lua,v 1.3 2008-07-09 20:34:03 br_lemes Exp $"
 --  Lua Built-In program (L-Bia)
 --  A self-running Lua interpreter. It turns your Lua program with all
 --  required modules and an interpreter into a single stand-alone program.
@@ -14,70 +14,66 @@
 --  http://l-bia.luaforge.net/
 --
 
--- ignore any error
-pcall(require,"lbaux")
+require("lbaux")
+
+--require("io")
+--require("table")
+--require("string")
+--TODO: ignore std modules
 
 -- values
 local LB_NAME      = "L-Bia"
-local LB_VERSION   = "0.1.10"
+local LB_VERSION   = "0.1.11"
 local LB_LONGNAME  = "Lua Buit-In program"
 local LB_COPYRIGHT = "Copyright (c) 2007,2008 Breno Ramalho Lemes"
 
-local modes   = {"-cf","-cl","-sf","-sl","-df","-dl","-rf","-rl"}
-local options = {"-i","-o","-v","-h","--best"}
+local LB_LMODULE = 0
+local LB_LUAMAIN = 1
+local LB_CMODULE = 2
 
-local mdesc = {
-  ["-cf"]="Clean and Flat mode (default soft clean)",
-  ["-cl"]="Clean and LZO mode (clean compress)",
-  ["-sf"]="Strip and Flat mode (lstrip hard clean)",
-  ["-sl"]="Strip and LZO mode (lstrip and compress)",
+local lb_modes   = {"-sf","-sl","-df","-dl","-rf","-rl"}
+local lb_options = {"-i","-o","-v","-h"}
+
+local lb_mdesc = {
+  ["-sf"]="Strip and Flat mode (no compression)",
+  ["-sl"]="Strip and LZO compression mode (default)",
   ["-df"]="Dumped and Flat mode (precompile)",
   ["-dl"]="Dumped and LZO mode (precompile and compress)",
   ["-rf"]="Raw copy and Flat mode (keep blanks and comments)",
   ["-rl"]="Raw copy and LZO mode (keep and compress)",
 }
-local odesc = {
+
+local lb_odesc = {
   ["-i"]="<file> Read input from <file>",
   ["-o"]="<file> Write output to <file>",
   ["-v"]="Show version number and exit (synonym for --version)",
   ["-h"]="Show this help message and exit (synonym for --help)",
-  ["--best"]="Select the best mode available (-sl or -cf)",
 }
 
 -- functions
 function lb_error(msg)
   if msg then print("ERROR: "..msg..".") end
-  error()
+  return error()
 end
 
 function lb_cannot(what,...)
   if arg[1] then return unpack(arg) end
-  lb_error("Cannot "..what.." "..arg[2])
+  return lb_error("Cannot "..what.." "..arg[2])
 end
 
 local LUA_DIRSEP = '/'
 local LUA_PATH_MARK = '?'
 
-local function findfile(name, pname)
+function lb_findfile(name, pname)
   name = string.gsub(name, "%.", LUA_DIRSEP)
   local path = package[pname]
   assert(type(path) == "string", string.format("package.%s must be a string", pname))
   for c in string.gmatch(path, "[^;]+") do
     c = string.gsub(c, "%"..LUA_PATH_MARK, name)
     local f = io.open(c)
-    if f then
-      f:close()
-      return c
-    end
+    if f then f:close() return c end
   end
   return nil -- not found
-end
-
-function center(str,size)
-  str = string.rep(" ",(size-#str)/2)..str..string.rep(" ",(size-#str)/2)
-  if #str < size then str = " "..str end
-  if #str > size then str = string.sub(str,1,-2) end
-  return str
 end
 
 function filename_ext(filename)
@@ -100,21 +96,19 @@ function filename_base(filename)
   return (string.gsub(filename,"%.[^\\/]*$",""))
 end
 
-function usage(progname)
+function lb_usage(progname)
   print(LB_LONGNAME.." ("..LB_NAME..") "..LB_VERSION)
   print("Usage: "..progname.." [mode|option] [-i <file>] [-o <file>] <file>")
   print()
   print("Modes:")
-  for i = 1,#modes do
-    local k = modes[i]
-    local v = mdesc[k]
-    print("  "..k..string.rep(" ",8-#k)..v)
+  for i,v in ipairs(lb_modes) do
+    local d = lb_mdesc[v]
+    print("  "..v..string.rep(" ",8-#v)..d)
   end
   print("Options:")
-  for i = 1,#options do
-    local k = options[i]
-    local v = odesc[k]
-    print("  "..k..string.rep(" ",8-#k)..v)
+  for i,v in ipairs(lb_options) do
+    local d = lb_odesc[v]
+    print("  "..v..string.rep(" ",8-#v)..d)
   end
   print()
   print("L-Bia comes with ABSOLUTELY NO WARRANTY; This is free software, and you are")
@@ -123,16 +117,7 @@ end
 
 local LB_TFHELP = "Type '"..filename_name(arg[0]).." --help' for help"
 
-function catch_modes()
-  for i = 1,#modes do
-    if arg[1] == modes[i] then
-      return modes[i]
-    end
-  end
-  lb_error("Invalid mode or option '"..arg[1].."'.\n"..LB_TFHELP)
-end
-
-function getopts()
+function lb_getopts()
   local exeext = filename_ext(arg[-1] or arg[0])
   local outext = false
   local input  = false
@@ -152,22 +137,22 @@ function getopts()
             output = arg[2]
             table.remove(arg,1)
           else lb_error("Invalid arguments!\n"..LB_TFHELP) end
-        elseif arg[1] == "--best" then
-          if not mode then
-            if lbaux then
-              if lbaux.lstrip then mode = "-sl" end
-            else mode = "-cf" end
-          else
-            lb_error("Invalid mode or option '"..arg[1].."'.\n"..LB_TFHELP)
-          end
         elseif arg[1] == "-v" or arg[1] == "--version" then
           print(LB_NAME.." "..LB_VERSION.." "..LB_COPYRIGHT)
           return nil
         elseif arg[1] == "-h" or arg[1] == "--help" then
-          usage(filename_name(arg[0]))
+          lb_usage(filename_name(arg[0]))
           return nil
-        elseif not mode then 
-          mode = catch_modes()
+        elseif not mode then
+          for i,v in ipairs(lb_modes) do
+            if arg[1] == v then
+              mode = v
+              break
+            end
+          end
+          if not mode then
+            lb_error("Invalid mode or option '"..arg[1].."'.\n"..LB_TFHELP)
+          end
         else
           lb_error("Invalid mode or option '"..arg[1].."'.\n"..LB_TFHELP)
         end      
@@ -178,13 +163,7 @@ function getopts()
     else lb_error("Too many arguments.\n"..LB_TFHELP) end
     table.remove(arg,1)
   end
-  mode = mode or "-cf"
-  if string.sub(mode,3,3) == "l" and (not lbaux) then
-    lb_error("mini LZO real-time data compression library not available")
-  end
-  if string.sub(mode,2,2) == "s" and (not lbaux) then
-    lb_error("lstrip not available")
-  end
+  mode = mode or "-sl"
   if not script then
     lb_error("Too few arguments.\n"..LB_TFHELP)
   end
@@ -203,8 +182,8 @@ function getopts()
   return input,script,output,mode
 end
 
--- BEGIN clean up code
 -- Based on code by Waldemar Celes - TeCGraf/PUC-Rio Jul 1999
+-- BEGIN
 
 -- mark up comments and strings
 STR1 = "\001"
@@ -233,21 +212,14 @@ MASK = { -- the substitution order is important
   {REM2 , "%-%-"},
 }
 
-function mask(s)
-  for i = 1,#MASK  do
-    s = string.gsub(s,MASK[i][2],MASK[i][1])
+function lb_mask(s)
+  for i,v in ipairs(MASK)  do
+    s = string.gsub(s,v[2],v[1])
   end
   return s
 end
 
-function unmask(s)
-  for i = 1,#MASK  do
-    s = string.gsub(s,MASK[i][1],MASK[i][2])
-  end
-  return s
-end
-
-function check(s)
+function lb_check(s)
   local code = "return function (...)\n"..s.."\nend"
   local f,e = loadstring(code)
   if not f then lb_error(e) end
@@ -255,55 +227,14 @@ function check(s)
   if not a then lb_error(b) end
 end
 
-function clean(s)
---  do checking im main() function
---  check(s)
-
-  local S = "" -- saved string
-
-  s = mask(s)
-
-  -- remove blanks and comments
-  while 1 do
-    local b,e,d = string.find(s,ANY)
-    if b then
-      S = S..string.gsub(string.sub(s,1,b-1),"[ \t]+"," ") -- eliminate unecessary spaces
-      s = string.sub(s,b+1)
-      if d==STR1 or d==STR2 then
-        e = string.find(s,d)
-        S = S..d..string.sub(s,1,e)
-        s = string.sub(s,e+1)
-      elseif d==REM1 then
-        e = string.find(s,STR4)
-        s = string.sub(s,e+1)
-      elseif d==STR3 then
-        e = string.find(s,STR4)
-        S = S..d..string.sub(s,1,e)
-        s = string.sub(s,e+1)
-      elseif d==REM2 then
-        s = string.gsub(s,"[^\n]*(\n?)","%1",1)
-      end
-    else
-      S = S..s
-      break
-    end
-  end
-  -- eliminate unecessary spaces
-  S = string.gsub(S,"[ \t]*\n[ \t]*","\n")
-  S = string.gsub(S,"\n+","\n")
-  S = unmask(S)
-  return S
-end
--- END clean-up code
-
 -- return a table of requires (based on clean-up code)
-function reqtab(s)
+function lb_reqtab(s)
   local reqpat = {
     "require%s-%(?%s-",
     "pcall%s-%(%s-require%s-,%s-",
   }
   local result = { }
-  s = mask(s)
+  s = lb_mask(s)
   while 1 do
     b,e,d = string.find(s,ANY)
     if b then
@@ -311,8 +242,8 @@ function reqtab(s)
       s = string.sub(s,b+1)
       if d == STR1 or d == STR2 then
         e = string.find(s,d)
-        for i = 1, #reqpat do
-          if string.find(p,reqpat[i]) then
+        for i,v in ipairs(reqpat) do
+          if string.find(p,v) then
             table.insert(result,string.sub(s,1,e-1))
             break
           end
@@ -323,8 +254,8 @@ function reqtab(s)
         s = string.sub(s,e+1)
       elseif d == STR3 then
         e = string.find(s,STR4)
-        for i = 1, #reqpat do
-          if string.find(p,reqpat[i]) then
+        for i,v in ipairs(reqpat) do
+          if string.find(p,v) then
             table.insert(result,string.sub(s,1,e-1))
             break
           end
@@ -340,74 +271,16 @@ function reqtab(s)
   return result
 end
 
--- return string,nlen,dlen,mode
-local mfunc = {
-  ["-cf"]=function (s)
-            local str = clean(s)
-            return str,#str,#str,"Flat"
-          end,
-  ["-cl"]=function (s)
-            s = clean(s)
-            local mode = "mLZO"
-            local str = lbaux.compress(s)
-            -- don't compress incompressible files
-            if #str > #s then
-              str = s
-              mode = "Flat"
-            end
-            return str,#str,#s,mode
-          end,
-  ["-sf"]=function (s)
-            local str = lbaux.lstrip(s)
-            return str,#str,#str,"Flat"
-          end,
-  ["-sl"]=function (s)
-            s = lbaux.lstrip(s)
-            local mode = "mLZO"
-            local str = lbaux.compress(s)
-            -- don't compress incompressible files
-            if #str > #s then
-              str = s
-              mode = "Flat"
-            end
-            return str,#str,#s,mode
-          end,
-  ["-df"]=function (s)
-            local str = string.dump(loadstring(s))
-            return str,#str,#str,"Flat"
-          end,
-  ["-dl"]=function (s)
-            s = string.dump(loadstring(s))
-            local mode = "mLZO"
-            local str = lbaux.compress(s)
-            -- don't compress incompressible files
-            if #str > #s then
-              str = s
-              mode = "Flat"
-            end
-            return str,#str,#s,mode
-          end,
-  ["-rf"]=function (s) return s,#s,#s,"Flat" end,
-  ["-rl"]=function (s)
-            local mode = "mLZO"
-            local str = lbaux.compress(s)
-            -- don't compress incompressible files
-            if #str > #s then
-              str = s
-              mode = "Flat"
-            end
-            return str,#str,#s,mode
-          end,
-}
+-- END
 
-function showinfo(len1,len2,type,name)
-  if len2 then
-    print(string.format("  %10d --> %10d  %s  %s",len1,len2,
-                        center(type,11),name))
-  else
-    print(string.format("  %s  %s  %s",
-                        center(tostring(len1),25),
-                        center(type,11),name))
+function lb_mfunc(mode,s)
+  mode = string.sub(mode,2,2)
+  if mode == "s" then
+    return lbaux.lstrip(s)
+  elseif mode == "d" then
+    return string.dump(loadstring(s))
+  else -- for sure it's mode == "r"
+    return s
   end
 end
 
@@ -418,131 +291,94 @@ function main(input,script,output,mode)
   local i_handle = lb_cannot("open",io.open(input,"rb"))
   local i_string = lb_cannot("read",i_handle:read("*a"))
   i_handle:close()
-  i_len1 = #i_string
 
-  -- get sign table
-  local i_sign = {
-    sign = string.sub(i_string,-33,-28),
-    mode = string.sub(i_string,-27,-24),
-    nlen = string.sub(i_string,-22,-13),
-    dlen = string.sub(i_string,-11,-2),
-    slen = 34
-  }
+  -- open output
+  local o_handle = lb_cannot("open",io.open(output,"wb"))
+  local o_string = ""
 
-  if i_sign.sign == "L-Bia#" then
-    if (string.sub(mode,2,2) == "x") and (string.sub(mode,3,3) == "s") then
-      i_string = string.sub(i_string,-(i_sign.nlen+i_sign.slen)) -- source
-    else
-      i_string = string.sub(i_string,1,-(i_sign.nlen+i_sign.slen)-1) -- binary
-    end
-  elseif string.sub(mode,2,2) == "x" then
-    lb_error("Missing, corrupted or incompatible script overlay")    
+  if string.sub(i_string,-16,-13) == "LB02" then
+    local size = lbaux.touint32(string.sub(i_string,-4))
+    o_handle:write(string.sub(i_string,1,-(size+16+1)))
+  else
+    o_handle:write(i_string)
   end
-
-  local i_len2 = #i_string
-  local s_len1, s_len2, o_len
-  local info_table = { }
 
   -- read script
   local s_handle = lb_cannot("open",io.open(script,"rb"))
   local s_string = lb_cannot("read",s_handle:read("*a"))
   s_handle:close()
-  s_len1 = #s_string
 
-  -- strip #! from first line
+  -- strip "#!" from first line
   if string.sub(s_string,1,2) == "#!" then
     local _,i = string.find(s_string,"^#!.-\n")
     s_string = string.sub(s_string,i,-1)
   end
 
-  check(s_string)
+  lb_check(s_string)
 
-  local s_reqtab = reqtab(s_string)
-  local s_reqstr = ""
+  local s_reqtab = lb_reqtab(s_string)
   for i,name in ipairs(s_reqtab) do
-    local temp = { }
-    temp.name = findfile(name,"path")
-    if temp.name then 
-      temp.type = "Lua module"
+    local fullname = lb_findfile(name,"path")
+    if fullname then -- Lua Module
+      local l_handle = lb_cannot("open",io.open(fullname,"rb"))
+      local l_string = lb_cannot("read",l_handle:read("*a"))
+      l_handle:close()
+      lb_check(l_string)
+      l_string = lb_mfunc(mode,l_string)
+      name = filename_name(fullname)
+      if #name > 255 then name = string.sub(name,1,255) end
+      o_string = o_string..string.char(LB_LMODULE)..  -- File ID
+                 string.char(#name)..name..           -- Name (size and name)
+                 lbaux.toustr32(#l_string)..l_string  -- File (size and data)
     else
-      temp.name = findfile(name,"cpath")
-      if temp.name then
-        temp.type = "C module"
-      else
-        lb_error("Module not found")
-      end
+      fullname = lb_findfile(name,"cpath")
+      if fullname then -- C Module
+        local c_handle = lb_cannot("open",io.open(fullname,"rb"))
+        local c_string = lb_cannot("read",c_handle:read("*a"))
+        c_handle:close()
+        name = filename_name(fullname)
+        if #name > 255 then name = string.sub(name,1,255) end
+        o_string = o_string..string.char(LB_CMODULE)..  -- File ID
+                   string.char(#name)..name..           -- Name (size and name)
+                   lbaux.toustr32(#c_string)..c_string  -- File (size and data)
+      else lb_error("Module not found") end
     end
-    local s_reqhan = lb_cannot("open",io.open(temp.name,"rb"))
-    local s_reqdat = s_reqhan:read("*a")
-    s_reqhan:close()
-    temp.len1 = #s_reqdat
-    if temp.type == "Lua module" then
-      s_reqdat = lbaux.quote(mfunc["-"..string.sub(mode,2,2).."f"](s_reqdat))
-    else -- if C module
-      s_reqdat = lbaux.quote(s_reqdat)
+  end
+
+  s_string = lb_mfunc(mode,s_string)
+  local s_name = filename_name(script)
+  if #s_name > 255 then s_name = string.sub(s_name,1,255) end
+  o_string = o_string..string.char(LB_LUAMAIN)..  -- File ID
+             string.char(#s_name)..s_name..       -- Name (size and name)
+             lbaux.toustr32(#s_string)..s_string  -- File (size and data)
+
+  local mlzosize = 0
+  local flatsize = #o_string
+  if string.sub(mode,3,3) == "l" then
+    local n_string = lbaux.compress(o_string)
+    if #n_string < #o_string then
+      mlzosize = #n_string
+      o_string = n_string
     end
-    s_reqstr = s_reqstr..string.format("LB_REQ[%d]={module=%q,name=%q,type=%q,data=%s}\n",
-                                        i,name,filename_name(temp.name),temp.type,s_reqdat)
-    temp.len2 = #s_reqdat
-    table.insert(info_table,temp)
-  end
-  if #s_reqtab > 0 then
-    s_string = string.format("LB_REQ={}\n%s\n"..[[
-LB_REQ.temp = os.getenv("TEMP") or os.getenv("TMP") or "/tmp"
-LB_REQ.temp = LB_REQ.temp.."/"
-package.cpath = LB_REQ.temp..%q..";"..package.cpath
-for i,v in ipairs(LB_REQ) do
-  if v.type == "Lua module" then
-    loadstring(v.data)(v.module)
-  else -- if C module
-      local fhandle = io.open(LB_REQ.temp..v.name,"wb+")
-      fhandle:write(v.data)
-      fhandle:close()
-      require(v.module)
-      os.remove(LB_REQ.temp..v.name)
-  end
-end
-%s]],s_reqstr,string.match(package.cpath,"%?%....?"),s_string)
   end
 
-  -- process mode
-  local s_string,s_nlen,s_dlen,s_mode = mfunc[mode](s_string)
-
-  -- write output
-  local o_handle = lb_cannot("open",io.open(output,"wb+"))
-  local o_string = string.format("%s%s<L-Bia#%s:%010d:%010d>",
-    i_string,s_string,s_mode,s_nlen,s_dlen)
-  lb_cannot("write",o_handle:write(o_string))
-  if (lbaux and lbaux.chmod) then
-    lb_cannot("chmod",lbaux.chmod(o_handle,755))
-  end
-  o_handle:close()
-
-  s_len2 = s_nlen
-  o_len  = #o_string
-
---  if not o_len then return end
-
-  print(LB_NAME.." "..LB_VERSION.." - "..mdesc[mode])
-  print(LB_COPYRIGHT)
-  print()
-  print("          File size           File type   File name")
-  print("  -------------------------  -----------  --------------------")
-  showinfo(i_len1,i_len2,"Input",filename_name(input))
-  for i,info in ipairs(info_table) do
-    showinfo(info.len1,info.len2,info.type,filename_name(info.name))
-  end
-  if script then showinfo(s_len1,s_len2,"Script",filename_name(script)) end
-  print("  -------------------------  -----------  --------------------")
-  showinfo(o_len,nil,"Output",filename_name(output))
-end
-
-if io and string and table then
-  if #arg == 0 then
-    usage(filename_name(arg[0]))
+  o_handle:write(o_string,"LB02")
+  if mlzosize > 0 then 
+    o_handle:write(lbaux.toustr32(flatsize),
+                   lbaux.toustr32(lbaux.adler32(o_string)),
+                   lbaux.toustr32(mlzosize))
   else
-    main(getopts())
+    o_handle:write(lbaux.toustr32(0),
+                   lbaux.toustr32(lbaux.adler32(o_string)),
+                   lbaux.toustr32(flatsize))
   end
+
+  -- close output
+  o_handle:close()
+end
+
+if #arg == 0 then
+  lb_usage(filename_name(arg[0]))
 else
-  lb_error("Packages io, string or table not found")
+  main(lb_getopts())
 end
